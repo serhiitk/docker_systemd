@@ -1,0 +1,101 @@
+---
+- name: Deploy Docker containers to Docker server
+  # hosts: localhost
+  # connection: local
+  # gather_facts: no
+  hosts: docker_server
+  become: yes
+  vars_files:
+    - vars/default_vars.yml
+
+  tasks:
+
+#----- Deploy docker_engine and Python docker module on Debian system -----
+    - name: Install required system packages
+      apt:
+        name: "{{ docker_dependencies + python_dependencies}}"
+        state: present
+        update_cache: yes
+
+    - name: Add Docker’s official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+        id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+        state: present
+
+    - name: Add Docker’s repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+        state: present
+
+    - name: Install Docker-CE
+      apt:
+        name: ['docker-ce','docker-ce-cli','containerd.io']
+        state: present
+        update_cache: yes
+
+    # - name: Add user to docker group
+    #   user:
+    #     name: "{{ansible_user}}"
+    #     groups: docker
+    #     append: true
+
+    # - name: Check installed Python version
+    #   debug:
+    #     msg: Python version -- {{ ansible_python_version }}
+
+    # - name: Ensure Docker is started and enabled at boot.
+    #   service:
+    #     name: docker
+    #     state: started
+    #     enabled: true
+
+    - name: Install Docker module for Python
+      pip:
+        name: docker
+
+    - name: Create systemd directory to override docker.service
+      file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+
+    - name: Configuring remote access to Docker API with systemd unit file
+      copy:
+        src: override.conf
+        dest: /etc/systemd/system/docker.service.d/override.conf
+      notify: "Restart docker and reload systemd configuration"
+
+    - meta: flush_handlers
+
+#----- Create required containers -----
+    - name: Pull default docker image
+      docker_image:
+        name: "{{ container_image }}"
+        source: pull
+
+    - name: Create default docker containers
+      docker_container:
+        name: "{{ container_name }}_{{ item }}"
+        image: "{{ container_image }}"
+        command: "{{ nginx_command_script }}"
+        ports: "808{{ item }}:80"
+        state: started
+      with_sequence: count={{ num_containers }}
+      when: container_image == "nginx"
+
+    # - debug:
+    #     # var: result.host_info.ContainersRunning
+    #     # var: result.containers
+    #     # var: result.images
+    #     msg: "{{ item.Names[0] }}"
+    #   loop: "{{ result.containers }}"
+    #   when: result.containers | length != 0
+
+  handlers:
+    - name: "Restart docker and reload systemd configuration"
+      systemd:
+        daemon_reload: yes
+        name: 'docker.service'
+        enabled: yes
+        state: restarted
+...

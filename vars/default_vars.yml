@@ -1,0 +1,27 @@
+---
+  num_containers: 4
+  container_name: docker
+  # default_container_image: python:3-alpine
+  # default_container_command: sleep 1h
+  container_image: nginx
+  nginx_command_script: bash -c "apt-get update &&
+                                  apt-get install -y python &&
+                                   rm -rf /var/lib/apt/lists/* &&
+                                    exec nginx -g 'daemon off;'"
+
+  docker_server_ip: 192.168.56.101
+
+  docker_dependencies:
+    - 'apt-transport-https'
+    - 'ca-certificates'
+    - 'curl'
+    - 'gnupg-agent'
+    - 'software-properties-common'
+
+  python_dependencies:
+    - 'python-pip'
+    - 'python-setuptools'
+    - 'virtualenv'
+    # backports needs to python2 installation
+    - 'python-backports.ssl-match-hostname'
+...

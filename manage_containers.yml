@@ -1,0 +1,56 @@
+---
+#--- PLAY 1: Create In-memory Inventory
+- name: Setting Docker containers dynamic inventory from Docker Server
+  # hosts: localhost
+  # connection: local
+  gather_facts: no
+  hosts: docker_server
+  become: yes
+  vars_files:
+    - vars/default_vars.yml
+
+  tasks:
+
+    - name: Gathering info about live containers on Docker host
+      docker_host_info:
+        containers: yes
+      register: result
+
+    - name: Add all live containers to In-memory inventory
+      add_host:
+        # name: "{{ default_container_name }}_{{ item }}"
+        name: "{{ item.Names[0] }}"
+        groups: "all_containers"
+        ansible_connection: docker
+        ansible_docker_extra_args: "-H=tcp://{{ docker_server_ip }}:2375"
+      # with_sequence: count={{ create_containers }}
+      loop: "{{ result.containers }}"
+      changed_when: false
+
+#--- PLAY 2: Work with containers as hosts ---
+- name: Provision containers
+  hosts: all_containers
+  gather_facts: no
+  # connection: docker
+  # vars_files:
+  #   - vars/default_vars.yml
+
+  tasks:
+
+    - name: Check containers availability
+      ping:
+
+    - name: Copy index.html to Web containers
+      copy:
+        src: "{{ item }}"
+        dest: /usr/share/nginx/html
+        mode: '0644'
+      loop: ['index.html', 'docker-container-logo.png']
+
+    # - name: Alpine install nginx webserver
+    #   apk:
+    #     name: nginx
+    #     state: latest
+    #     update_cache: yes
+    #   when: ansible_facts['os_family'] == "Alpine"
+...
