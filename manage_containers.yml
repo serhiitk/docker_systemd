@@ -27,7 +27,7 @@
       loop: "{{ result.containers }}"
       changed_when: false
 
-#--- PLAY 2: Work with containers as hosts ---
+#--- PLAY 2: Work with containers as are hosts ---
 - name: Provision containers
   hosts: all_containers
   gather_facts: no
